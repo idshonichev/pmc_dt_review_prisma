@@ -12,6 +12,7 @@ Content:
    - `./data/raw_export/wos_export.xlsx` - WoS export file
    - `./data/screening.xlsm` - screening workbook with the inclusion/exclusion decision for every screened record: year, name, DOI, decision, reason, class and classification rationale
    - `./data/scopus_wos_merged.xlsx` - merged workbook created with `./scripts/merge_scopus_wos.py` from the fixed Scopus and the WoS exports
+   - `./data/Preferred Reporting Items for Systematic reviews and Meta.pdf` - PRISMA-ScR checklist
 
 2. Helper scripts:
 
