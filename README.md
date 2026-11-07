@@ -28,7 +28,7 @@ Content:
      python scripts/merge_scopus_wos.py data/raw_export/scopus_export_fixed.xlsx data/raw_export/wos_export.xlsx -o data/scopus_wos_merged.xlsx
      ```
 
-Both scripts can also be run with no arguments: missing file paths are prompted for interactively, and for Excel inputs the sheets are listed so one can be picked by number or name (Enter keeps the default). In an interactive terminal the path prompts support Tab completion of file and directory names; piped runs skip all prompts and fall back to defaults (first sheet, `<input_stem>_fixed.xlsx` / `<scopus_stem>_combined.xlsx`).
+Both scripts can also be run with no arguments: missing file paths are prompted for interactively, and for Excel inputs the sheets are listed so one can be picked by number or name (Enter keeps the default). In an interactive terminal the path prompts support Tab completion of file and directory names (type a leading `"` to complete paths containing spaces); piped runs skip all prompts and fall back to defaults (first sheet, `<input_stem>_fixed.xlsx` / `<scopus_stem>_combined.xlsx`). On Windows, Tab completion additionally requires `pip install pyreadline3`.
 
 Run `python scripts/<script>.py --help` for the full list of options (encoding, sheet overrides, title similarity threshold, etc.).
 

@@ -814,18 +814,32 @@ def _prompt(prompt: str) -> str:
 # ---------------------------------------------------------------------------
 
 try:
-    import readline
-except ImportError:  # e.g. Windows without the readline module
-    readline = None
+    import readline  # GNU readline, or libedit (e.g. Homebrew/uv Python)
+except ImportError:
+    try:
+        import readline  # pyreadline3 provides this shim on Windows
+    except ImportError:
+        readline = None
+
+# libedit (used by some Python builds) needs its own key-binding syntax;
+# GNU readline and pyreadline3 both understand the classic one.
+_IS_LIBEDIT = readline is not None and "libedit" in (
+    getattr(readline, "__doc__", "") or ""
+)
+_QUOTE = '"'
 
 
 class _PathCompleter:
     """Readline completer that finishes file and directory paths.
 
-    Works on everything typed up to the cursor, so paths containing
-    spaces complete as well. Completed directories get a trailing
-    separator so the next Tab descends into them. Dotfiles are only
-    offered when the typed prefix starts with a dot.
+    ``text`` is the word under the cursor; word delimiters are set to
+    space/tab/newline, so slashes stay inside the word and a whole path
+    completes as one unit (this also makes the returned matches line up
+    across GNU readline, libedit and pyreadline3). Completed directories
+    get a trailing separator so the next Tab descends into them.
+    Dotfiles are only offered when the typed prefix starts with a dot.
+    A leading double quote is honoured and closed on finished file names
+    (type paths containing spaces inside quotes).
     """
 
     def __init__(self):
@@ -833,19 +847,21 @@ class _PathCompleter:
 
     def complete(self, text, state):
         if state == 0:
-            self._matches = self._matches_for(
-                readline.get_line_buffer()[: readline.get_endidx()]
-            )
+            self._matches = self._matches_for(text)
         try:
             return self._matches[state]
         except IndexError:
             return None
 
     @staticmethod
-    def _matches_for(fragment: str) -> list:
-        fragment = os.path.expanduser(fragment)
+    def _matches_for(word: str) -> list:
+        quote = ""
+        if word.startswith(_QUOTE):
+            quote = _QUOTE
+            word = word[1:]
+        fragment = os.path.expanduser(word)
         if not fragment:
-            fragment = "./"
+            fragment = "." + os.sep
         dirname = os.path.dirname(fragment)
         prefix = os.path.basename(fragment)
         try:
@@ -859,7 +875,9 @@ class _PathCompleter:
             full = os.path.join(dirname, name) if dirname else name
             if os.path.isdir(full):
                 full += os.sep
-            matches.append(full)
+            elif quote:
+                full += quote  # close the quote on completed file names
+            matches.append(quote + full)
         return matches
 
 
@@ -867,8 +885,9 @@ class _PathCompleter:
 def _path_completion():
     """Turn on readline Tab-completion of paths inside the block.
 
-    A no-op without a readline module or when stdin is not a TTY, so
-    piped runs keep their exact current behaviour.
+    A no-op without a usable readline module (Windows without
+    ``pyreadline3``) or when stdin is not a TTY, so piped runs keep
+    their exact current behaviour.
     """
     if readline is None or not sys.stdin.isatty():
         yield
@@ -878,7 +897,17 @@ def _path_completion():
     # The default delims split words at '/', '-' and quotes, which would
     # chop every path into unusable fragments.
     readline.set_completer_delims(" \t\n")
-    readline.parse_and_bind("tab: complete")
+    if _IS_LIBEDIT:
+        # libedit silently ignores the classic "tab: complete" syntax.
+        readline.parse_and_bind("bind ^I rl_complete")
+    else:
+        readline.parse_and_bind("tab: complete")
+    try:
+        # Don't append a space after a unique match; the completer already
+        # adds a separator to completed directories itself.
+        readline.set_completion_append_character("")
+    except AttributeError:
+        pass  # not available on libedit / pyreadline3
     readline.set_completer(_PathCompleter().complete)
     try:
         yield
